@@ -46,40 +46,42 @@ enum direction {
 array<array<box, 3>, 3> board; // Multidimensional array 3x3
 array<array<box, 3>, 3> tempBoard;
 
-void draw(const array<array<box, 3>, 3> board) {
-    if (turn == 0) {
-        cout << "Now is " + player1 + " time!\n";
-    } else {
-        cout << "Now is " + player2 + " time!\n";
-    }
-    cout << "-------------\n";
-    for (int i = 0; i < 3; ++i) {
-        cout << "| ";
-        for (int j = 0; j < 3; ++j) {
-            switch (board[i][j]) {
-                case box::O:
-                    cout << "O";
-                    break;
-                case box::X:
-                    cout << "X";
-                    break;
-                case box::VOID:
-                    cout << " ";
-                    break;
-            }
-            cout << " | ";
-        }
-        cout << "\n";
-        cout << "-------------\n";
-    }
-}
-
 void startGame() {
     pair<int, int> tempPos(0,0);
     bool reached;
     int count = 0; // Count number of turns
     
     thread drawer([&count] {
+
+        // Draw function
+        auto draw = [](const array<array<box, 3>, 3> board) -> void {
+            if (turn == 0) {
+                cout << "Now is " + player1 + " time!\n";
+            } else {
+                cout << "Now is " + player2 + " time!\n";
+            }
+            cout << "-------------\n";
+            for (int i = 0; i < 3; ++i) {
+                cout << "| ";
+                for (int j = 0; j < 3; ++j) {
+                    switch (board[i][j]) {
+                        case box::O:
+                            cout << "O";
+                            break;
+                        case box::X:
+                            cout << "X";
+                            break;
+                        case box::VOID:
+                            cout << " ";
+                            break;
+                    }
+                    cout << " | ";
+                }
+                cout << "\n";
+                cout << "-------------\n";
+            }
+        };
+
         while (!win && count < 9) {
             system("clear");
             mtxBoard.lock();
