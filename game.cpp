@@ -1,8 +1,6 @@
 #include "game.h"
 #include "utils.h"
 
-#include <utility> // For pair usage
-#include <array> // For C++11 array usage
 #include <thread> // For threads manage
 #include <mutex> // For concurrency control
 #include <chrono> // For time manage
