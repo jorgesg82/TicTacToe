@@ -16,6 +16,8 @@ bool turn; // A value of '0' or 'false' means that is player1 turn, a value of '
 bool win;
 mutex mtxBoard;
 mutex mtxTempBoard;
+bool ia;
+
 const array<array<pair<int, int>, 10>, 4> directions {{
         {pair<int, int>(-1, 0), pair<int, int>(-2, 0), pair<int, int>(-1, -1), pair<int, int>(-2, -1),
          pair<int, int>(-1, 1), pair<int, int>(-2, 1), pair<int, int>(-1, -2), pair<int, int>(-2, -2),
@@ -46,40 +48,42 @@ enum direction {
 array<array<box, 3>, 3> board; // Multidimensional array 3x3
 array<array<box, 3>, 3> tempBoard;
 
-void draw(const array<array<box, 3>, 3> board) {
-    if (turn == 0) {
-        cout << "Now is " + player1 + " time!\n";
-    } else {
-        cout << "Now is " + player2 + " time!\n";
-    }
-    cout << "-------------\n";
-    for (int i = 0; i < 3; ++i) {
-        cout << "| ";
-        for (int j = 0; j < 3; ++j) {
-            switch (board[i][j]) {
-                case box::O:
-                    cout << "O";
-                    break;
-                case box::X:
-                    cout << "X";
-                    break;
-                case box::VOID:
-                    cout << " ";
-                    break;
-            }
-            cout << " | ";
-        }
-        cout << "\n";
-        cout << "-------------\n";
-    }
-}
-
 void startGame() {
     pair<int, int> tempPos(0,0);
     bool reached;
     int count = 0; // Count number of turns
     
     thread drawer([&count] {
+
+        // Draw function
+        auto draw = [](const array<array<box, 3>, 3> board) -> void {
+            if (turn == 0) {
+                cout << "Now is " + player1 + " time!\n";
+            } else {
+                cout << "Now is " + player2 + " time!\n";
+            }
+            cout << "-------------\n";
+            for (int i = 0; i < 3; ++i) {
+                cout << "| ";
+                for (int j = 0; j < 3; ++j) {
+                    switch (board[i][j]) {
+                        case box::O:
+                            cout << "O";
+                            break;
+                        case box::X:
+                            cout << "X";
+                            break;
+                        case box::VOID:
+                            cout << " ";
+                            break;
+                    }
+                    cout << " | ";
+                }
+                cout << "\n";
+                cout << "-------------\n";
+            }
+        };
+
         while (!win && count < 9) {
             system("clear");
             mtxBoard.lock();
@@ -123,6 +127,7 @@ void startGame() {
         }
     };
 
+    // Game loop
     while(!win && count < 9) {
         // Change turn
         turn = !turn;
@@ -145,42 +150,48 @@ void startGame() {
         else tempBoard[tempPos.first][tempPos.second] = box::O;
         mtxTempBoard.unlock();
 
-        // Wait to the player for press any key
-        bool choosed = false;
-        while (!choosed) {
-            char key;
-            bool arrowPressed = false;
-            while (!arrowPressed) {
-                key = getchar();
-                if (key == 10) {
-                    choosed = true;
-                    break;
-                }
-                if (key != 27) continue; // ESC
-                key = getchar();
-                if (key != '[') continue;
-                key = getchar();
-                switch (key) {
-                    case 'A': // UP
-                        changePos(direction::UP);
-                        arrowPressed = true;
+        if (ia && turn) {
+            // IA turn
+
+        } else {
+            // Player turn
+            
+            // Wait to the player for press any key
+            bool choosed = false;
+            while (!choosed) {
+                char key;
+                bool arrowPressed = false;
+                while (!arrowPressed) {
+                    key = getchar();
+                    if (key == 10) {
+                        choosed = true;
                         break;
-                    case 'B': // DOWN
-                        changePos(direction::DOWN);
-                        arrowPressed = true;
-                        break;
-                    case 'C': // RIGHT
-                        changePos(direction::RIGHT);
-                        arrowPressed = true;
-                        break;
-                    case 'D': // LEFT
-                        changePos(direction::LEFT);
-                        arrowPressed = true;
-                        break;
+                    }
+                    if (key != 27) continue; // ESC
+                    key = getchar();
+                    if (key != '[') continue;
+                    key = getchar();
+                    switch (key) {
+                        case 'A': // UP
+                            changePos(direction::UP);
+                            arrowPressed = true;
+                            break;
+                        case 'B': // DOWN
+                            changePos(direction::DOWN);
+                            arrowPressed = true;
+                            break;
+                        case 'C': // RIGHT
+                            changePos(direction::RIGHT);
+                            arrowPressed = true;
+                            break;
+                        case 'D': // LEFT
+                            changePos(direction::LEFT);
+                            arrowPressed = true;
+                            break;
+                    }
                 }
             }
         }
-
         ++count;
 
         // Change board
@@ -245,14 +256,41 @@ int main () {
     system("clear");
     cout << "Let's play Tic Tac Toe!\n\n";
 
+    bool selected = false;
+    while (!selected) {
+        cout << "Do you want to play against another player or against the machine?\n";
+        cout << "1. Player\n2. Machine\n";
+        cout << "Type a number: ";
+        char selection;
+        cin >> selection;
+        switch (selection) {
+            case 1:
+                selected = true;
+                ia = false;
+                break;
+            case 2:
+                selected = true;
+                ia = true;
+                break;
+            default:
+                cout << "Type a valid number!\n\n";
+        }
+    }
+
     // TODO Check if names are valid
-    cout << "Name of the first player: ";
-    cin >> player1;
-    system("clear");
-    cout << "Name of the second player: ";
-    cin >> player2;
+    if (!ia) {
+        cout << "Name of the first player: ";
+        cin >> player1;
+        system("clear");
+        cout << "Name of the second player: ";
+        cin >> player2;
+        system("clear");
+    } else {
+        cout << "Name of the player: ";
+        cin >> player1;
+        system("clear");
+    }
     cin.ignore(); // To erase final intro
-    system("clear");
 
     struct termios originalTerm, gameTerm;
     tcgetattr(STDIN_FILENO, &originalTerm); // Store original terminal configuration
