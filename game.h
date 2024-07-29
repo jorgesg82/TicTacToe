@@ -3,11 +3,6 @@
 
 #include <string>
 
-enum class box {
-    X,
-    O,
-    VOID
-};
 enum direction {
     UP,
     DOWN,

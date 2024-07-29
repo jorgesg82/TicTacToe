@@ -1,4 +1,5 @@
 #include "game.h"
+#include "utils.h"
 
 #include <utility> // For pair usage
 #include <array> // For C++11 array usage
@@ -29,8 +30,8 @@ int startGame(const string &player1, const string &player2) {
     // Game initialization
     mutex mtxBoard;
     mutex mtxTempBoard;
-    array<array<box, 3>, 3> board; // Multidimensional array 3x3
-    array<array<box, 3>, 3> tempBoard;
+    Board board; // Multidimensional array 3x3
+    Board tempBoard;
     bool win = false;
     pair<int, int> tempPos(0,0);
     bool turn = 1; // 0 means player1 turn, 1 means player2 turn
