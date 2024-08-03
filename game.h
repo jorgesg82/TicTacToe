@@ -2,23 +2,51 @@
 #define GAME_H
 
 #include <string>
+#include "ia.h"
+#include <thread>
 
-enum class box {
-    X,
-    O,
-    VOID
-};
-enum direction {
+using namespace std;
+
+enum direction
+{
     UP,
     DOWN,
     LEFT,
     RIGHT
 };
 
-/// @brief 
-/// @param player1 
-/// @param player2 
-/// @return -1 if draw, 0 if player1 wins, 1 if player2 wins
-int startGame(const std::string &player1, const std::string &player2);
+class Game
+{
+public:
+    Game(const string &player1);
+    Game(const string &player1, const string &player2);
+
+    int startGame();
+
+private:
+    static const array<array<pair<int, int>, 10>, 4> directions;
+
+    Board gameBoard;
+    Board tempBoard;
+
+    bool turn;
+    int turnCount;
+    bool iaPlayer;
+
+    string player1;
+    optional<string> player2;
+    IA ia;
+
+    thread drawer;
+    mutex mtxGameBoard;
+    mutex mtxTempBoard;
+    atomic<bool> end;
+
+    Pair tempPos;
+
+    void changePos(const direction &dir);
+    void drawBoard(const Board &board) const;
+    void drawGame();
+};
 
 #endif

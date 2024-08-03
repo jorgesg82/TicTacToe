@@ -1,162 +1,204 @@
 #include "game.h"
+#include "utils.h"
 
-#include <utility> // For pair usage
-#include <array> // For C++11 array usage
-#include <thread> // For threads manage
-#include <mutex> // For concurrency control
-#include <chrono> // For time manage
+#include <thread>   // For threads manage
+#include <mutex>    // For concurrency control
+#include <chrono>   // For time manage
 #include <iostream> // For input and output
 
 using namespace std;
 
-const array<array<pair<int, int>, 10>, 4> directions {{
-        {pair<int, int>(-1, 0), pair<int, int>(-2, 0), pair<int, int>(-1, -1), pair<int, int>(-2, -1),
-         pair<int, int>(-1, 1), pair<int, int>(-2, 1), pair<int, int>(-1, -2), pair<int, int>(-2, -2),
-         pair<int, int>(-1, 2), pair<int, int>(-2, 2)}, // UP
-        {pair<int, int>(1, 0), pair<int, int>(2, 0), pair<int, int>(1, -1), pair<int, int>(2, -1),
-         pair<int, int>(1, 1), pair<int, int>(2, 1), pair<int, int>(1, -2), pair<int, int>(2, -2),
-         pair<int, int>(1, 2), pair<int, int>(2, 2)}, // DOWN
-        {pair<int, int>(0, -1), pair<int, int>(0, -2), pair<int, int>(-1, -1), pair<int, int>(-1, -2),
-         pair<int, int>(1, -1), pair<int, int>(1, -2), pair<int, int>(-2, -1), pair<int, int>(-2, -2),
-         pair<int, int>(2, -1), pair<int, int>(2, -2)}, // LEFT
-        {pair<int, int>(0, 1), pair<int, int>(0, 2), pair<int, int>(-1, 1), pair<int, int>(-1, 2),
-         pair<int, int>(1, 1), pair<int, int>(1, 2), pair<int, int>(-2, 1), pair<int, int>(-2, 2),
-         pair<int, int>(2, 1), pair<int, int>(2, 2)}  // RIGHT
-    }}; // All posible directions when you press an arrow to move. There are already in priority order
+const array<array<Pair, 10>, 4> Game::directions{{
+    {Pair(-1, 0), Pair(-2, 0), Pair(-1, -1), Pair(-2, -1),
+     Pair(-1, 1), Pair(-2, 1), Pair(-1, -2), Pair(-2, -2),
+     Pair(-1, 2), Pair(-2, 2)}, // UP
+    {Pair(1, 0), Pair(2, 0), Pair(1, -1), Pair(2, -1),
+     Pair(1, 1), Pair(2, 1), Pair(1, -2), Pair(2, -2),
+     Pair(1, 2), Pair(2, 2)}, // DOWN
+    {Pair(0, -1), Pair(0, -2), Pair(-1, -1), Pair(-1, -2),
+     Pair(1, -1), Pair(1, -2), Pair(-2, -1), Pair(-2, -2),
+     Pair(2, -1), Pair(2, -2)}, // LEFT
+    {Pair(0, 1), Pair(0, 2), Pair(-1, 1), Pair(-1, 2),
+     Pair(1, 1), Pair(1, 2), Pair(-2, 1), Pair(-2, 2),
+     Pair(2, 1), Pair(2, 2)} // RIGHT
+}}; // All posible directions when you press an arrow to move. There are already in priority order
 
-int startGame(const string &player1, const string &player2) {
-    
-    // Game initialization
-    mutex mtxBoard;
-    mutex mtxTempBoard;
-    array<array<box, 3>, 3> board; // Multidimensional array 3x3
-    array<array<box, 3>, 3> tempBoard;
-    bool win = false;
-    pair<int, int> tempPos(0,0);
-    bool turn = 1; // 0 means player1 turn, 1 means player2 turn
-    int count = 0; // Count number of turns
-    // Init void board
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; j++) {
-            board[i][j] = box::VOID;
-        }
+Game::Game(const string &player1)
+{
+    gameBoard = Board();
+    tempBoard = Board();
+
+    turn = false;
+    turnCount = 0;
+    iaPlayer = true;
+    end = false;
+
+    this->player1 = player1;
+    ia = IA();
+
+    tempPos = make_pair(0, 0);
+}
+
+Game::Game(const string &player1, const string &player2)
+{
+    gameBoard = Board();
+    tempBoard = Board();
+
+    turn = false;
+    turnCount = 0;
+    iaPlayer = false;
+    end = false;
+
+    this->player1 = player1;
+    this->player2 = player2;
+
+    tempPos = make_pair(0, 0);
+}
+
+void Game::changePos(const direction &dir)
+{
+    Pair nextPos;
+    for (auto i = directions[dir].begin(); i != directions[dir].end(); ++i)
+    { // Check all possible directions
+        // Calculate new position
+        nextPos = Pair(tempPos.first + i->first, tempPos.second + i->second);
+
+        // Check if new position is valid
+        if (nextPos.first < 0 || nextPos.second < 0 || nextPos.first > 2 || nextPos.second > 2)
+        {
+            continue;
+        } // Out of board bounds
+        if (gameBoard.getValue(nextPos) != box::VOID)
+            continue; // Position already occupied
+
+        // Change temporal position in temporal board
+        mtxTempBoard.lock();
+        tempBoard.setValue(tempPos, box::VOID);
+        if (turn == 0)
+            tempBoard.setValue(nextPos, box::X);
+        else
+            tempBoard.setValue(nextPos, box::O);
+        mtxTempBoard.unlock();
+        tempPos = nextPos;
+        break;
     }
-    // Init void tempBoard
-    tempBoard = board;
-    
-    // Lambda function that, given a direction, calculates where should be the next position and changes to it
-    auto changePos = [&tempPos, &turn, &board, &mtxTempBoard, &tempBoard](const direction dir) -> void {
-        pair<int, int> nextPos;
-        for(auto i = directions[dir].begin(); i != directions[dir].end(); ++i) { // Check all possible directions
-            // Calculate new position
-            nextPos = pair<int,int>(tempPos.first + i->first, tempPos.second + i->second);
+}
 
-            // Check if new position is valid
-            if (nextPos.first < 0 
-                || nextPos.second < 0
-                || nextPos.first > 2
-                || nextPos.second > 2)
+void Game::drawBoard(const Board &board) const
+{
+    if (turn == 0)
+    {
+        cout << "Now is " + player1 + " time!\n";
+    }
+    else
+    {
+        cout << "Now is " + player2.value_or("IA") + " time!\n";
+    }
+    cout << "-------------\n";
+    for (int i = 0; i < 3; ++i)
+    {
+        cout << "| ";
+        for (int j = 0; j < 3; ++j)
+        {
+            switch (board.getValue(make_pair(i, j)))
             {
-                continue;
-            } // Out of board bounds
-            if (board[nextPos.first][nextPos.second] != box::VOID) continue; // Position already occupied
-        
-            // Change temporal position in temporal board
-            mtxTempBoard.lock();
-            tempBoard[tempPos.first][tempPos.second] = box::VOID;
-            if(turn == 0) tempBoard[nextPos.first][nextPos.second] = box::X;
-            else tempBoard[nextPos.first][nextPos.second] = box::O;
-            mtxTempBoard.unlock();
-            tempPos = nextPos;
-            break;
-        }
-    };
-
-    thread drawer([&count, &player1, &player2, &turn, &mtxBoard, &board, &mtxTempBoard, &tempBoard, &win] {
-
-        // Draw function
-        auto draw = [&player1, &player2, &turn](const array<array<box, 3>, 3> board) -> void {
-            if (turn == 0) {
-                cout << "Now is " + player1 + " time!\n";
-            } else {
-                cout << "Now is " + player2 + " time!\n";
+            case box::O:
+                cout << "O";
+                break;
+            case box::X:
+                cout << "X";
+                break;
+            case box::VOID:
+                cout << " ";
+                break;
             }
-            cout << "-------------\n";
-            for (int i = 0; i < 3; ++i) {
-                cout << "| ";
-                for (int j = 0; j < 3; ++j) {
-                    switch (board[i][j]) {
-                        case box::O:
-                            cout << "O";
-                            break;
-                        case box::X:
-                            cout << "X";
-                            break;
-                        case box::VOID:
-                            cout << " ";
-                            break;
-                    }
-                    cout << " | ";
-                }
-                cout << "\n";
-                cout << "-------------\n";
-            }
-        };
-
-        while (!win && count < 9) {
-            system("clear");
-            mtxBoard.lock();
-            draw(board);
-            mtxBoard.unlock();
-            this_thread::sleep_for(chrono::milliseconds(300));
-            system("clear");
-            mtxTempBoard.lock();
-            draw(tempBoard);
-            mtxTempBoard.unlock();
-            this_thread::sleep_for(chrono::milliseconds(300));
+            cout << " | ";
         }
-        return;
-    });
+        cout << "\n";
+        cout << "-------------\n";
+    }
+}
 
-    // Game start
-    while(!win && count < 9) {
-        // Change turn
-        turn = !turn;
+void Game::drawGame()
+{
+    while (!end && turnCount < 9)
+    {
+        system("clear");
+        mtxGameBoard.lock();
+        drawBoard(gameBoard);
+        mtxGameBoard.unlock();
+        this_thread::sleep_for(chrono::milliseconds(300));
+        system("clear");
+        mtxTempBoard.lock();
+        drawBoard(tempBoard);
+        mtxTempBoard.unlock();
+        this_thread::sleep_for(chrono::milliseconds(300));
+    }
+    return;
+}
 
+int Game::startGame()
+{
+    // Start to draw board
+    drawer = thread(&Game::drawGame, this);
+
+    while (!end && turnCount < 9)
+    {
         // Reach first void position
         bool reached = false;
-        for (int i = 0; i < 3; ++i) {
-            for (int j = 0; j < 3; j++) {
-                if(board[i][j] == box::VOID) {
+        for (int i = 0; i < 3; ++i)
+        {
+            for (int j = 0; j < 3; j++)
+            {
+                if (gameBoard.getValue(make_pair(i, j)) == box::VOID)
+                {
                     tempPos.first = i;
                     tempPos.second = j;
                     reached = true;
                     break;
                 }
             }
-            if (reached) break;
+            if (reached)
+                break;
         }
         mtxTempBoard.lock();
-        if(turn == 0) tempBoard[tempPos.first][tempPos.second] = box::X;
-        else tempBoard[tempPos.first][tempPos.second] = box::O;
+        if (turn == 0)
+            tempBoard.setValue(tempPos, box::X);
+        else
+            tempBoard.setValue(tempPos, box::O);
         mtxTempBoard.unlock();
 
-        // Wait to the player for press any key
-        bool choosed = false;
-        while (!choosed) {
-            char key;
-            bool arrowPressed = false;
-            while (!arrowPressed) {
-                key = getchar();
-                if (key == 10) {
-                    choosed = true;
-                    break;
-                }
-                if (key != 27) continue; // ESC
-                key = getchar();
-                if (key != '[') continue;
-                key = getchar();
-                switch (key) {
+        if (turn && iaPlayer)
+        {
+            // IA turn
+            tempPos = ia.play(gameBoard);
+        }
+        else
+        {
+            // Player turn
+
+            // Wait to the player for press any key
+            bool choosed = false;
+            while (!choosed)
+            {
+                char key;
+                bool arrowPressed = false;
+                while (!arrowPressed)
+                {
+                    key = getchar();
+                    if (key == 10)
+                    {
+                        choosed = true;
+                        break;
+                    }
+                    if (key != 27)
+                        continue; // ESC
+                    key = getchar();
+                    if (key != '[')
+                        continue;
+                    key = getchar();
+                    switch (key)
+                    {
                     case 'A': // UP
                         changePos(direction::UP);
                         arrowPressed = true;
@@ -173,66 +215,44 @@ int startGame(const string &player1, const string &player2) {
                         changePos(direction::LEFT);
                         arrowPressed = true;
                         break;
+                    }
                 }
             }
         }
-
-        ++count;
 
         // Change board
-        mtxBoard.lock();
-        if(turn == 0) board[tempPos.first][tempPos.second] = box::X;
-        else board[tempPos.first][tempPos.second] = box::O;
-        mtxBoard.unlock();
-
-        // Check if win has been reached
-        // Check nearby boxes
-        pair<int,int> secondPos(0,0);
-        pair<int,int> thirdPos(0,0);
-        for (int i = -1; i < 2; ++i) {
-            secondPos.first = tempPos.first + i;
-            if (secondPos.first < 0 || secondPos.first > 2) continue;
-            for (int j = -1; j < 2; ++j) {
-                secondPos.second = tempPos.second + j;
-                if (secondPos == tempPos || secondPos.second < 0 || secondPos.second > 2) continue;
-                if(turn == 0 && board[secondPos.first][secondPos.second] == box::X
-                    || turn == 1 && board[secondPos.first][secondPos.second] == box::O)
-                {
-                    thirdPos.first = secondPos.first + i;
-                    thirdPos.second = secondPos.second + j;
-                    if (thirdPos.first >= 0 && thirdPos.first <= 2) {
-                        if (thirdPos.second >= 0 && thirdPos.second <= 2) {
-                            if(turn == 0 && board[thirdPos.first][thirdPos.second] == box::X
-                                || turn == 1 && board[thirdPos.first][thirdPos.second] == box::O)
-                            {
-                                win = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    thirdPos.first = tempPos.first - i;
-                    thirdPos.second = tempPos.second - j;
-                    if (thirdPos.first >= 0 && thirdPos.first <= 2) {
-                        if (thirdPos.second >= 0 && thirdPos.second <= 2) {
-                            if(turn == 0 && board[thirdPos.first][thirdPos.second] == box::X
-                                || turn == 1 && board[thirdPos.first][thirdPos.second] == box::O)
-                            {
-                                win = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-           if (win) break;
+        mtxGameBoard.lock();
+        mtxTempBoard.lock();
+        if (turn == 0)
+        {
+            gameBoard.setValue(tempPos, box::X);
+            tempBoard.setValue(tempPos, box::X);
         }
+        else
+        {
+            gameBoard.setValue(tempPos, box::O);
+            tempBoard.setValue(tempPos, box::O);
+        }
+        mtxGameBoard.unlock();
+        mtxTempBoard.unlock();
+
+        // Check if end has been reached
+        if (gameBoard.isWin() >= 0)
+        {
+            end = true;
+            break;
+        }
+
+        // Turn finished
+        turn = !turn;
+        ++turnCount;
     }
 
     // Game has ended.
     // Waiting drawer to stop
     drawer.join();
+    system("clear");
+    drawBoard(gameBoard);
 
-    if (!win) return -1;
-    else return turn;
+    return gameBoard.isWin();
 }
