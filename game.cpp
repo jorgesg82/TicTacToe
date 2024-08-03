@@ -240,7 +240,7 @@ int Game::startGame()
         if (gameBoard.isWin() >= 0)
         {
             end = true;
-            continue;
+            break;
         }
 
         // Turn finished
@@ -251,6 +251,8 @@ int Game::startGame()
     // Game has ended.
     // Waiting drawer to stop
     drawer.join();
+    system("clear");
+    drawBoard(gameBoard);
 
     return gameBoard.isWin();
 }
