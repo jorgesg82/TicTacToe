@@ -8,9 +8,9 @@ This is a terminal game, so it only can be played in macOS and Linux platforms, 
 ## Build
 Just run:
 ```
-clang++ -o TicTacToe main.cpp game.cpp ia.cpp
+clang++ -o TicTacToe main.cpp game.cpp ia.cpp board.cpp
 ```
 or
 ```
-g++ -o TicTacToe main.cpp game.cpp ia.cpp
+g++ -o TicTacToe main.cpp game.cpp ia.cpp board.cpp
 ```
