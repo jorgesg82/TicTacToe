@@ -2,3 +2,7 @@ main
 TicTacToe
 .vscode
 main.dSYM
+build/TicTacToe.dSYM/Contents/Info.plist
+build/TicTacToe.dSYM/Contents/Resources/Relocations/aarch64/TicTacToe.yml
+TicTacToe.dSYM/Contents/Resources/Relocations/aarch64/TicTacToe.yml
+TicTacToe.dSYM/Contents/Info.plist
