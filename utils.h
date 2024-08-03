@@ -9,7 +9,6 @@ enum class box {
     VOID
 };
 
-using Board = std::array<std::array<box, 3>, 3>;
 using Pair = std::pair<int, int>;
 
 #endif
